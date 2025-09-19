@@ -20,7 +20,7 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 
-from rom_cache_engine import ROMCacheManager, CacheConfig
+from ..cache.engine import ROMCacheManager, CacheConfig
 
 class LinkStrategy(Enum):
     """Different strategies for linking cached ROMs to EmulationStation"""

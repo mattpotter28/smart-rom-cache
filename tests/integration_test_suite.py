@@ -19,7 +19,7 @@ import json
 
 # Import our modules (in real deployment these would be proper imports)
 from src.cache.engine import ROMCacheManager, CacheConfig, CacheEntry
-from src.integration.emulationstation import CrossPlatformLinker
+# from src.integration.emulationstation import EmulationStationIntegration, ROMServer
 
 class MockHTTPServer:
     """Simple HTTP server for testing ROM downloads"""
@@ -275,7 +275,7 @@ class ROMCacheTestSuite:
         print("\n=== Testing Cross-Platform Linking Integration ===")
         
         # Import the cross-platform linker
-        from emulationstation_integration import CrossPlatformLinker
+        from src.integration.emulationstation import CrossPlatformLinker
         
         # Create mock EmulationStation directory structure
         es_roms_dir = self.temp_dir / "roms"
