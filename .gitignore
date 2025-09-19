@@ -52,9 +52,9 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Application specific
-cache/
-logs/
+# Application specific - RUNTIME cache data (not source code)
+/cache/
+/logs/
 *.db
 *.sqlite
 *.sqlite3
