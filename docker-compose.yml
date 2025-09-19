@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  # Main ROM Cache Manager Application
+  rom-cache-manager:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./cache:/app/cache
+      - ./config:/app/config
+      - ./test_roms:/app/roms
+      - ./logs:/app/logs
+    environment:
+      - CACHE_SIZE_GB=10
+      - CLEANUP_THRESHOLD=0.8
+      - LOG_LEVEL=INFO
+      - ROM_SERVER_URL=http://nginx-rom-server:80
+      - DATABASE_PATH=/app/cache/cache.db
+    depends_on:
+      - nginx-rom-server
+      - postgres
+    networks:
+      - rom-cache-network
+
+  # Mock ROM Server (nginx serving test ROM files)
+  nginx-rom-server:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./test_data/rom_server:/usr/share/nginx/html
+      - ./docker/nginx-rom-server.conf:/etc/nginx/nginx.conf
+    networks:
+      - rom-cache-network
+
+  # PostgreSQL for better metadata storage (optional upgrade)
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: rom_cache
+      POSTGRES_USER: rom_cache
+      POSTGRES_PASSWORD: rom_cache_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - rom-cache-network
+
+  # Redis for caching and session management (future)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - rom-cache-network
+
+  # Test EmulationStation Instance
+  emulationstation-test:
+    build:
+      context: ./docker/emulationstation
+      dockerfile: Dockerfile
+    volumes:
+      - ./test_roms:/home/pi/RetroPie/roms
+      - ./config:/opt/retropie/configs/all/emulationstation
+    depends_on:
+      - rom-cache-manager
+    networks:
+      - rom-cache-network
+    profiles:
+      - testing  # Only start with --profile testing
+
+  # Integration Test Runner
+  integration-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    volumes:
+      - .:/app
+    environment:
+      - ROM_CACHE_API_URL=http://rom-cache-manager:8000
+      - ROM_SERVER_URL=http://nginx-rom-server:80
+      - POSTGRES_URL=postgresql://rom_cache:rom_cache_pass@postgres:5432/rom_cache
+    depends_on:
+      - rom-cache-manager
+      - nginx-rom-server
+      - postgres
+    networks:
+      - rom-cache-network
+    profiles:
+      - testing
+    command: python -m pytest tests/ -v --tb=short
+
+  # Load Testing with Locust
+  load-test:
+    build:
+      context: ./docker/load-test
+      dockerfile: Dockerfile
+    ports:
+      - "8089:8089"
+    environment:
+      - TARGET_HOST=http://rom-cache-manager:8000
+    depends_on:
+      - rom-cache-manager
+    networks:
+      - rom-cache-network
+    profiles:
+      - load-testing
+
+networks:
+  rom-cache-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+
+# Additional compose files for different environments
+# docker-compose.override.yml - Development overrides
+# docker-compose.prod.yml - Production configuration
+# docker-compose.test.yml - Testing specific services
